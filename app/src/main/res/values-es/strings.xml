@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Smart BLE</string>
+
+    <!-- Title Menu -->
+    <string name="menu_title">Menú</string>
+
+    <!-- Lateral Menu -->
+    <string name="menu_item_home">Inicio</string>
+    <string name="menu_item_about">Acerca de</string>
+    <string name="menu_item_color_picker">Selector de color</string>
+</resources>
