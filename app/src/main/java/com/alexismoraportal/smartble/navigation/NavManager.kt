@@ -19,7 +19,7 @@ import com.alexismoraportal.smartble.screen.HomeScreen
 
 /**
  * NavManager sets up the main navigation of the application.
- * It uses a [LateralMenu] for each screen, displaying a top bar and a drawer menu.
+ * It wraps each screen with a [LateralMenu] that provides a consistent top bar and drawer.
  * The start destination is set to [Screen.Home].
  */
 @Composable
@@ -51,6 +51,7 @@ fun NavManager() {
 /**
  * Adds a screen to the NavHost graph, wrapping it in a [LateralMenu].
  * This ensures a consistent top bar and navigation drawer across all screens.
+ * For the ColorPicker screen, drawer swipe gestures are disabled.
  *
  * @param screen The [Screen] object representing the route for this destination.
  * @param content The composable function that defines the screen's UI.
@@ -66,6 +67,8 @@ private fun NavGraphBuilder.addScreen(
             menuItems = MenuItemsProvider.menuItems,
             topBarTitle = stringResource(id = R.string.app_name),
             topBarImageRes = null,
+            // Enable gestures for Home and About, disable for ColorPicker
+            enableGestures = screen != Screen.ColorPicker,
             onMenuItemClick = { menuItem ->
                 navController.navigate(menuItem.route) {
                     popUpTo(Screen.Home.route)

@@ -21,16 +21,16 @@ object MenuItemsProvider {
             route = Screen.Home.route
         ),
         MenuItem(
-            id = "about",
-            title = R.string.menu_item_about, // Reference to the string resource for "About"
-            icon = Icons.Filled.Info,
-            route = Screen.About.route
-        ),
-        MenuItem(
             id = "colorPicker",
             title = R.string.menu_item_color_picker, // Reference to the string resource for "Color Picker"
             icon = Icons.Filled.Palette,
             route = Screen.ColorPicker.route
+        ),
+        MenuItem(
+            id = "about",
+            title = R.string.menu_item_about, // Reference to the string resource for "About"
+            icon = Icons.Filled.Info,
+            route = Screen.About.route
         )
     )
 }

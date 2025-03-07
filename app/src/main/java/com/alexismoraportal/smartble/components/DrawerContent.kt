@@ -44,7 +44,7 @@ fun DrawerContent(
             // List of menu items
             menuItems.forEach { item ->
                 NavigationDrawerItem(
-                    label = { Text(text = stringResource(id = item.title)) },
+                    label = { Text(text = stringResource(id = item.title), style = MaterialTheme.typography.bodyLarge) },
                     icon = {
                         Icon(
                             imageVector = item.icon,

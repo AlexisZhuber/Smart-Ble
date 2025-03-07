@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
  * @param onMenuItemClick Callback invoked when a menu item is clicked.
  * @param topBarTitle Optional title for the top bar. Defaults to the app name if not provided.
  * @param topBarImageRes Optional image resource to display as a logo in the top bar.
+ * @param enableGestures Determines whether swipe gestures are enabled for opening/closing the drawer.
  * @param content Composable content displayed in the main area of the screen.
  */
 @Composable
@@ -24,6 +25,7 @@ fun LateralMenu(
     onMenuItemClick: (MenuItem) -> Unit = {},
     topBarTitle: String? = null,
     topBarImageRes: Int? = null,
+    enableGestures: Boolean = true, // Change this parameter when needed
     content: @Composable (PaddingValues) -> Unit
 ) {
     // Create a drawer state to manage the drawer's open/closed status.
@@ -35,8 +37,9 @@ fun LateralMenu(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = enableGestures, // Pass the parameter here
         drawerContent = {
-            // Display the drawer content without the logout option.
+            // Display the drawer content without a logout option.
             DrawerContent(
                 menuItems = menuItems,
                 onMenuItemClick = { item ->
