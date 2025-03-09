@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -20,9 +21,11 @@ import dagger.hilt.android.AndroidEntryPoint
 /**
  * MainActivity is the entry point of the application.
  * It requests the necessary runtime permissions for BLE scanning and connection,
- * including location permission for Android <= 11, then sets up the Compose UI and launches the NavManager.
+ * including location permission for Android <= 11, as well as the POST_NOTIFICATIONS
+ * permission for Android 13+ if not already granted. Then it sets up the Compose UI
+ * and launches the NavManager.
  *
- * Additionally, it now checks whether Bluetooth is enabled and, if not, prompts the user to enable it
+ * Additionally, it checks whether Bluetooth is enabled and, if not, prompts the user to enable it
  * via a system dialog using an Activity Result Launcher.
  */
 @AndroidEntryPoint
@@ -74,6 +77,7 @@ class MainActivity : ComponentActivity() {
      * Requests runtime permissions for BLE scanning and connection.
      * - On Android 12+ (API 31+), it requests BLUETOOTH_SCAN and BLUETOOTH_CONNECT.
      * - On Android <= 11, it requests ACCESS_FINE_LOCATION (often needed to discover BLE).
+     * - On Android 13+ (API 33+), it requests POST_NOTIFICATIONS to show notifications.
      */
     private fun checkAndRequestPermissions() {
         val neededPermissions = mutableListOf(
@@ -81,6 +85,10 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.BLUETOOTH_SCAN
         )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            neededPermissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         val permissionsToRequest = neededPermissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED

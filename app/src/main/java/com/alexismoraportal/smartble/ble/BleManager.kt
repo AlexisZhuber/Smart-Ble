@@ -11,69 +11,71 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import com.alexismoraportal.smartble.BleForegroundService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.*
 
 /**
- * BleManager handles all Bluetooth Low Energy (BLE) operations including:
- * - Scanning for BLE devices
- * - Connecting and disconnecting to/from a BLE device
- * - Sending data/commands to the connected device
- * - Receiving notifications from the device
- * - Enabling Bluetooth programmatically if necessary
+ * BleManager handles all Bluetooth Low Energy (BLE) operations, including:
+ * - Scanning for BLE devices.
+ * - Connecting to and disconnecting from a BLE device.
+ * - Sending commands to the connected device.
+ * - Receiving notifications with sensor data.
  *
- * Only devices with the exact name "SmartBleDevice" are added to the scan results.
+ * This manager filters discovered devices to only include those with the name "SmartBleDevice".
  * The BLE service and characteristic used for communication are identified by predefined UUIDs.
+ *
  * Incoming sensor data is expected in the format "D:<digital>,A:<analog>" and is parsed accordingly.
+ * Any errors (e.g. connection failures, service discovery issues) are exposed via an errorMessage flow.
  *
- * All errors (such as connection or service discovery failures) are exposed through the errorMessage flow.
+ * When a device is connected, this manager also starts a foreground service (BleForegroundService)
+ * so that sensor data continues to be displayed in a persistent notification even if the app
+ * is sent to the background.
  *
- * Note: The enableBluetooth() method uses BluetoothAdapter.enable() which is asynchronous and may not
- * work on newer Android versions without user interaction. It is recommended to request the user
- * to enable Bluetooth via a system dialog when possible.
+ * Make sure to call [cleanup()] when the manager is no longer needed to unregister listeners and prevent memory leaks.
  *
- * Additionally, a cleanup() method is provided to unregister the BroadcastReceiver and avoid memory leaks.
- *
- * @property context The application context used for creating BLE connections.
+ * @property context The application context used for BLE operations.
  */
 class BleManager(private val context: Context) {
 
-    // Retrieve the default Bluetooth adapter (null if unsupported).
-    private var bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
+    // Obtain the default Bluetooth adapter (returns null if BLE is not supported)
+    private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
 
-    // Holds the GATT connection to the BLE device (only one connection supported at a time).
+    // Holds the active BluetoothGatt connection (this manager supports one connection at a time)
     private var bluetoothGatt: BluetoothGatt? = null
 
-    // Flow of discovered BLE devices (DeviceInfo objects).
+    // Flow to hold a list of discovered BLE devices (each represented by a DeviceInfo object)
     private val _scanResults = MutableStateFlow<List<DeviceInfo>>(emptyList())
     val scanResults = _scanResults.asStateFlow()
 
-    // Flow representing whether a BLE device is connected (true) or not (false).
+    // Flow representing whether a BLE device is currently connected
     private val _isConnected = MutableStateFlow(false)
     val isConnected = _isConnected.asStateFlow()
 
-    // Flow storing incoming sensor data, keyed by device address.
+    // Flow storing incoming sensor data (keyed by device address)
     private val _incomingMessages = MutableStateFlow<Map<String, SensorData>>(emptyMap())
     val incomingMessages = _incomingMessages.asStateFlow()
 
-    // Flow for error messages (null if no error).
+    // Flow for error messages (null if no error)
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage = _errorMessage.asStateFlow()
 
-    // Flow representing the current Bluetooth enabled state (updated via BroadcastReceiver).
+    // Flow representing the current Bluetooth enabled state
     private val _bluetoothEnabled = MutableStateFlow(bluetoothAdapter?.isEnabled == true)
     val bluetoothEnabled = _bluetoothEnabled.asStateFlow()
 
-    // Flow storing the address of the currently connected device (null if none).
+    // Flow storing the address of the currently connected device (null if none)
     private val _connectedDeviceAddress = MutableStateFlow<String?>(null)
     val connectedDeviceAddress = _connectedDeviceAddress.asStateFlow()
 
-    // Reference to the BLE scan callback for stopping scans later.
+    // Reference to the BLE scan callback (to stop scanning when needed)
     private var scanningCallback: ScanCallback? = null
 
     /**
-     * BroadcastReceiver that updates the _bluetoothEnabled flow when the Bluetooth state changes.
+     * BroadcastReceiver to monitor changes in Bluetooth state.
+     * Updates the _bluetoothEnabled flow when the Bluetooth adapter's state changes.
      */
     private val bluetoothStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -85,33 +87,38 @@ class BleManager(private val context: Context) {
     }
 
     init {
-        // Register a BroadcastReceiver to listen for Bluetooth state changes.
+        // Register the Bluetooth state receiver to listen for state changes.
         val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         context.registerReceiver(bluetoothStateReceiver, filter)
     }
 
     /**
-     * Starts scanning for BLE devices using the system Bluetooth LE scanner.
-     * Only devices named "SmartBleDevice" are added to the results.
+     * Starts scanning for BLE devices using the system BLE scanner.
+     * Only devices whose name equals "SmartBleDevice" are added to the scan results.
      */
     @SuppressLint("MissingPermission")
     fun startScan() {
-        bluetoothAdapter?.bluetoothLeScanner?.let { scanner ->
-            val callback = object : ScanCallback() {
-                override fun onScanResult(callbackType: Int, result: ScanResult) {
-                    super.onScanResult(callbackType, result)
-                    val device = result.device
-                    if (device.name == "SmartBleDevice") {
-                        val deviceInfo = DeviceInfo(name = device.name, address = device.address)
-                        if (_scanResults.value.none { it.address == deviceInfo.address }) {
-                            _scanResults.value += deviceInfo
-                        }
+        val scanner = bluetoothAdapter?.bluetoothLeScanner ?: return
+        val callback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                super.onScanResult(callbackType, result)
+                val device = result.device
+                // Only include devices with the expected name.
+                if (device.name == "SmartBleDevice") {
+                    val deviceInfo = DeviceInfo(
+                        name = device.name ?: "Unknown Device",
+                        address = device.address
+                    )
+                    // Add device to the list if not already present.
+                    if (_scanResults.value.none { it.address == deviceInfo.address }) {
+                        _scanResults.value = _scanResults.value + deviceInfo
+                        Log.d("BleManager", "Device found: ${deviceInfo.name} (${deviceInfo.address})")
                     }
                 }
             }
-            scanningCallback = callback
-            scanner.startScan(callback)
         }
+        scanningCallback = callback
+        scanner.startScan(callback)
     }
 
     /**
@@ -126,22 +133,28 @@ class BleManager(private val context: Context) {
     /**
      * Connects to a BLE device using its MAC address.
      *
-     * For Android 12 (API 31) devices, autoConnect = true for improved stability;
-     * for other versions, autoConnect = false for a direct connection.
+     * For stability, this implementation forces autoConnect to false on all devices.
+     * Upon successful connection, the foreground service (BleForegroundService) is started to
+     * display sensor data in a persistent notification.
      *
-     * @param address The MAC address of the BLE device.
+     * @param address The MAC address of the target BLE device.
      * @return true if the connection initiation succeeded, false otherwise.
      */
     @SuppressLint("MissingPermission")
     fun connectToDevice(address: String): Boolean {
-        val device = bluetoothAdapter?.getRemoteDevice(address)
-        val autoConnect = (Build.VERSION.SDK_INT == Build.VERSION_CODES.S)
-        bluetoothGatt = device?.connectGatt(context, autoConnect, gattCallback)
+        val device = bluetoothAdapter?.getRemoteDevice(address) ?: return false
+        // Force autoConnect = false for stability across Android versions.
+        val autoConnect = false
+        bluetoothGatt = device.connectGatt(context, autoConnect, gattCallback)
+        Log.d("BleManager", "Initiating connection to device: $address, autoConnect=$autoConnect")
         return bluetoothGatt != null
     }
 
     /**
-     * Sends a string command to the connected BLE device by writing a UTF-8 ByteArray to the characteristic.
+     * Sends a string command to the connected BLE device.
+     * The string is converted to a UTF-8 ByteArray and written to the BLE characteristic.
+     *
+     * @param valueToSend The command string to send (e.g., "*100,255,0,0.").
      */
     @Suppress("DEPRECATION")
     @SuppressLint("MissingPermission")
@@ -151,95 +164,128 @@ class BleManager(private val context: Context) {
         characteristic?.let {
             it.value = valueToSend.toByteArray(Charsets.UTF_8)
             bluetoothGatt?.writeCharacteristic(it)
+            Log.d("BleManager", "Sent value: $valueToSend")
         }
     }
 
     /**
-     * Disconnects from the currently connected BLE device.
+     * Disconnects from the connected BLE device and stops the foreground service.
      */
     @SuppressLint("MissingPermission")
     fun disconnect() {
         bluetoothGatt?.disconnect()
+        // Stop the foreground service since the device is disconnected.
+        val serviceIntent = Intent(context, BleForegroundService::class.java)
+        context.stopService(serviceIntent)
+        Log.d("BleManager", "Disconnected from device")
     }
 
     /**
-     * BluetoothGattCallback for connection events, service discovery, and notifications.
+     * BluetoothGattCallback handles connection events, service discovery, and characteristic notifications.
+     * It also starts or stops the foreground service based on the connection state and sends sensor data
+     * updates via local broadcasts.
      */
     @SuppressLint("MissingPermission")
     private val gattCallback = object : BluetoothGattCallback() {
-
         override fun onConnectionStateChange(gatt: BluetoothGatt?, status: Int, newState: Int) {
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     _errorMessage.value = null
-                    gatt?.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
-                    gatt?.requestMtu(512)
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        gatt?.discoverServices()
-                    }, 300)
+                    gatt?.apply {
+                        requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+                        // Try with default MTU first
+                        requestMtu(23)
+                        Handler(Looper.getMainLooper()).postDelayed({ discoverServices() }, 1000)
+                    }
                     _isConnected.value = true
-
-                    // Store the connected device address.
                     _connectedDeviceAddress.value = gatt?.device?.address
+
+                    // Start foreground service if needed
+                    val serviceIntent = Intent(context, BleForegroundService::class.java)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     if (status != BluetoothGatt.GATT_SUCCESS) {
                         _errorMessage.value = "Connection failed with status $status"
+                        Log.e("BleManager", "Connection failed with status $status, retrying in 3 seconds...")
+                        // Retry connection after 3 seconds if a device address is known
+                        _connectedDeviceAddress.value?.let { address ->
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                connectToDevice(address)
+                            }, 3000)
+                        }
                     }
                     bluetoothGatt?.close()
                     bluetoothGatt = null
                     _isConnected.value = false
-
-                    // Clear the connected device address on disconnection.
                     _connectedDeviceAddress.value = null
+
+                    // Stop the foreground service
+                    val serviceIntent = Intent(context, BleForegroundService::class.java)
+                    context.stopService(serviceIntent)
                 }
             }
         }
 
-        @Suppress("DEPRECATION")
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 val service = gatt?.getService(UUID.fromString(SERVICE_UUID))
                 val characteristic = service?.getCharacteristic(UUID.fromString(CHARACTERISTIC_UUID))
                 if (characteristic != null) {
+                    // Enable notifications on the characteristic.
                     gatt.setCharacteristicNotification(characteristic, true)
                     val descriptor = characteristic.getDescriptor(
                         UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
                     )
-                    descriptor?.let {
-                        it.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                        gatt.writeDescriptor(it)
-                    } ?: run {
+                    if (descriptor != null) {
+                        descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                        gatt.writeDescriptor(descriptor)
+                    } else {
                         _errorMessage.value = "Descriptor not found on characteristic"
+                        Log.e("BleManager", "Descriptor not found on characteristic")
                     }
                 } else {
                     _errorMessage.value = "Characteristic not found on device"
+                    Log.e("BleManager", "Characteristic not found on device")
                 }
             } else {
                 _errorMessage.value = "Service discovery failed with status $status"
+                Log.e("BleManager", "Service discovery failed with status $status")
             }
         }
 
         @Deprecated("Deprecated in Java")
-        @Suppress("DEPRECATION")
-        override fun onCharacteristicChanged(
-            gatt: BluetoothGatt?,
-            characteristic: BluetoothGattCharacteristic?
-        ) {
+        override fun onCharacteristicChanged(gatt: BluetoothGatt?, characteristic: BluetoothGattCharacteristic?) {
             if (characteristic?.uuid == UUID.fromString(CHARACTERISTIC_UUID)) {
                 val message = characteristic?.getStringValue(0) ?: ""
+                Log.d("BleManager", "Characteristic changed: $message")
+                // Expect sensor data in format "D:<digital>,A:<analog>"
                 if (message.startsWith("D:") && message.contains(",A:")) {
                     try {
                         val parts = message.split(",A:")
                         val digital = parts[0].removePrefix("D:").trim().toInt()
                         val analog = parts[1].trim().toInt()
+                        // Update sensor data state
                         val sensorData = SensorData(digital, analog)
                         val deviceAddress = gatt?.device?.address ?: ""
                         _incomingMessages.value = _incomingMessages.value.toMutableMap().apply {
                             put(deviceAddress, sensorData)
                         }
+                        // Create a broadcast to update the foreground notification with new sensor data.
+                        val updateIntent = Intent(BleForegroundService.ACTION_UPDATE_SENSOR).apply {
+                            putExtra(BleForegroundService.EXTRA_SENSOR_DATA, "D:$digital, A:$analog")
+                            // Make the broadcast explicit by setting the package.
+                            setPackage(context.packageName)
+                        }
+                        context.sendBroadcast(updateIntent)
+                        Log.d("BleManager", "Sensor data broadcast sent: D:$digital, A:$analog")
                     } catch (e: Exception) {
                         _errorMessage.value = "Error parsing sensor data: ${e.message}"
+                        Log.e("BleManager", "Error parsing sensor data", e)
                     }
                 }
             }
@@ -247,13 +293,14 @@ class BleManager(private val context: Context) {
     }
 
     /**
-     * Cleanup method to unregister the Bluetooth state BroadcastReceiver and avoid memory leaks.
+     * Unregisters the Bluetooth state BroadcastReceiver to avoid memory leaks.
      */
     fun cleanup() {
         try {
             context.unregisterReceiver(bluetoothStateReceiver)
         } catch (e: IllegalArgumentException) {
             // Receiver was not registered; ignore the exception.
+            Log.w("BleManager", "Bluetooth state receiver was not registered")
         }
     }
 

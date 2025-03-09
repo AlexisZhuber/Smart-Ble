@@ -3,6 +3,7 @@ package com.alexismoraportal.smartble.ble
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.alexismoraportal.smartble.SmartBleApplication
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
@@ -26,9 +27,8 @@ import kotlinx.coroutines.launch
  * @param application The Application context used to create the BleManager.
  */
 class BleViewModel(application: Application) : AndroidViewModel(application) {
-
     // The BleManager handling all BLE operations.
-    private val bleManager = BleManager(application)
+    private val bleManager = (application as SmartBleApplication).bleManager
 
     // StateFlow holding the list of discovered BLE devices.
     private val _scanResults = MutableStateFlow<List<DeviceInfo>>(emptyList())
