@@ -1,6 +1,7 @@
 package com.alexismoraportal.smartble.model
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Palette
@@ -21,10 +22,10 @@ object MenuItemsProvider {
             route = Screen.Home.route
         ),
         MenuItem(
-            id = "colorPicker",
-            title = R.string.menu_item_color_picker, // Reference to the string resource for "Color Picker"
-            icon = Icons.Filled.Palette,
-            route = Screen.ColorPicker.route
+            id = "code",
+            title = R.string.menu_item_code, // Reference to the string resource for "Code ESP32"
+            icon = Icons.Filled.Code,
+            route = Screen.Code.route
         ),
         MenuItem(
             id = "about",

@@ -7,5 +7,33 @@
     <!-- Lateral Menu -->
     <string name="menu_item_home">Inicio</string>
     <string name="menu_item_about">Acerca de</string>
-    <string name="menu_item_color_picker">Selector de color</string>
+    <string name="menu_item_code">Código del ESP32</string>
+
+    <!-- Nuevos Strings para HomeScreen y ColorPickerScreen -->
+    <string name="bluetooth_must_be_enabled">El Bluetooth debe estar encendido</string>
+    <string name="connect_devices">Conectar dispositivos</string>
+    <string name="start_scan">Iniciar escaneo</string>
+    <string name="stop_scan">Detener escaneo</string>
+    <string name="disconnect">Desconectar</string>
+    <string name="device_address">Dispositivo: %s</string>
+    <string name="sensor_data">Datos del sensor - Digital: %d, Analógico: %d</string>
+    <string name="no_sensor_data">No hay datos del sensor</string>
+    <string name="error_message">ERROR: %s</string>
+
+    <!-- Strings para CodeScreen -->
+    <string name="code_screen_title">Código Fuente</string>
+    <string name="copy_code">Copiar Código</string>
+    <string name="code_copied">Código copiado</string>
+    <string name="open_repository">Abrir repositorio</string>
+
+    <!-- Strings para AboutScreen -->
+    <string name="about_title">Acerca de Mí</string>
+    <string name="about_description">
+Soy Ingeniero en Mecatrónica con un diploma de 2 años en Programación de Computadoras en Canadá y desarrollador Android con 5 años de experiencia.
+Puedo desarrollar proyectos a la medida para cubrir tus necesidades y estoy abierto a nuevas colaboraciones.
+Manejo diversas tecnologías, como React, y soy experto en sistemas embebidos.
+No dudes en contactarme a través de mi portafolio o GitHub.
+    </string>
+    <string name="open_github">Abrir GitHub</string>
+    <string name="open_portfolio">Abrir Portafolio</string>
 </resources>

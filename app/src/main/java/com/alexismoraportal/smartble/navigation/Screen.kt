@@ -13,6 +13,6 @@ sealed class Screen(val route: String) {
     /** About screen route. */
     object About : Screen("about")
 
-    /** Color Picker screen route. */
-    object ColorPicker : Screen("colorPicker")
+    /** Code ESP32 screen route. */
+    object Code : Screen("code")
 }

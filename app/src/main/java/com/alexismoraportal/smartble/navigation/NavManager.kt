@@ -14,7 +14,7 @@ import com.alexismoraportal.smartble.R
 import com.alexismoraportal.smartble.components.LateralMenu
 import com.alexismoraportal.smartble.model.MenuItemsProvider
 import com.alexismoraportal.smartble.screen.AboutScreen
-import com.alexismoraportal.smartble.screen.ColorPickerScreen
+import com.alexismoraportal.smartble.screen.CodeScreen
 import com.alexismoraportal.smartble.screen.HomeScreen
 
 /**
@@ -41,8 +41,8 @@ fun NavManager() {
             navController = navController
         )
         addScreen(
-            screen = Screen.ColorPicker,
-            content = { ColorPickerScreen() },
+            screen = Screen.Code,
+            content = { CodeScreen() },
             navController = navController
         )
     }
@@ -62,21 +62,38 @@ private fun NavGraphBuilder.addScreen(
     content: @Composable () -> Unit,
     navController: androidx.navigation.NavHostController
 ) {
+    // Create a composable destination for the provided screen route.
     composable(screen.route) {
+        // Wrap the screen content inside a LateralMenu which provides a consistent top bar and navigation drawer.
         LateralMenu(
-            menuItems = MenuItemsProvider.menuItems,
-            topBarTitle = stringResource(id = R.string.app_name),
-            topBarImageRes = null,
-            // Enable gestures for Home and About, disable for ColorPicker
-            enableGestures = screen != Screen.ColorPicker,
+            menuItems = MenuItemsProvider.menuItems, // List of menu items to display in the navigation drawer.
+            topBarTitle = stringResource(id = R.string.app_name), // Top bar title set to the app name from resources.
+            topBarImageRes = null, // Optional logo image resource; set to null if not used.
+            // Enable swipe gestures based on the current screen.
+            // For example, gestures can be disabled on the Home screen.
+            enableGestures = screen != Screen.Home,
+            // Handle menu item click events.
             onMenuItemClick = { menuItem ->
-                navController.navigate(menuItem.route) {
-                    popUpTo(Screen.Home.route)
-                    launchSingleTop = true
+                // Check if the selected menu item's route is different from the current destination.
+                // This prevents re-navigating to the same screen and causing unnecessary UI refresh.
+                if (navController.currentBackStackEntry?.destination?.route != menuItem.route) {
+                    // Navigate to the selected route.
+                    // The navigation configuration includes:
+                    //   - popUpTo: Navigate back to the Home screen before opening the new destination.
+                    //   - launchSingleTop: Avoid creating multiple copies of the same destination.
+                    navController.navigate(menuItem.route) {
+                        popUpTo(Screen.Home.route)
+                        launchSingleTop = true
+                    }
                 }
+                // If the current route matches the selected menu item, do not navigate.
+                // The LateralMenu will automatically handle closing the drawer.
             }
         ) { paddingValues: PaddingValues ->
+            // Apply the padding provided by the Scaffold inside LateralMenu.
+            // This ensures that the main content is correctly offset, taking into account the drawer and top bar.
             Surface(modifier = Modifier.padding(paddingValues)) {
+                // Render the main composable content for the current screen.
                 content()
             }
         }

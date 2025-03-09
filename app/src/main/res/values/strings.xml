@@ -7,6 +7,33 @@
     <!-- Lateral Menu -->
     <string name="menu_item_home">Home</string>
     <string name="menu_item_about">About</string>
-    <string name="menu_item_color_picker">Color Picker</string>
+    <string name="menu_item_code">ESP32 code</string>
 
+    <!-- New Strings for HomeScreen and ColorPickerScreen -->
+    <string name="bluetooth_must_be_enabled">Bluetooth must be turned on</string>
+    <string name="connect_devices">Connect Devices</string>
+    <string name="start_scan">Start Scan</string>
+    <string name="stop_scan">Stop Scan</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="device_address">Device: %s</string>
+    <string name="sensor_data">Sensor Data - Digital: %d, Analog: %d</string>
+    <string name="no_sensor_data">No sensor data available</string>
+    <string name="error_message">ERROR: %s</string>
+
+    <!-- Strings for CodeScreen -->
+    <string name="code_screen_title">Source Code</string>
+    <string name="copy_code">Copy Code</string>
+    <string name="code_copied">Code copied</string>
+    <string name="open_repository">Open Repository</string>
+
+    <!-- Strings for AboutScreen -->
+    <string name="about_title">About Me</string>
+    <string name="about_description">
+I am a Mechatronics Engineer with a 2-year Computer Programming diploma from Canada and an Android Developer with 5 years of experience.
+I develop custom projects tailored to your needs and welcome new opportunities to collaborate.
+I also work with various technologies including React and am an expert in embedded systems.
+Feel free to contact me through my portfolio or GitHub.
+    </string>
+    <string name="open_github">Open GitHub</string>
+    <string name="open_portfolio">Open Portfolio</string>
 </resources>
